@@ -40,7 +40,7 @@ with open(DATA_PATH, "r", encoding="utf-8") as file:
         r_kind = row["kind"]
         is_tool_dangerous = row["tool"] in DANGEROUS_TOOLS
 
-        # flagged.
+        # flagged if the argument came from read.
         r_only_from_read = row["arg_only_from_read"]
 
         if r_label == 1:
