@@ -1,5 +1,5 @@
 """
-Combining arg_from_read and hard-coded baseline. Results in yet another baseline to compare against.
+Combining arg_from_read to hard-coded baseline. Results in yet another baseline to compare against.
 A smarter approach. However, here I use the hard-coded list of tools, which makes it not that veritable. It's just another
 baseline to compare against.
 
