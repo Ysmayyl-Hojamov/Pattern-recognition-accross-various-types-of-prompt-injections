@@ -5,7 +5,7 @@ I definitely have to clean up the code!
 import json
 from pathlib import Path
 
-from pattern_recognition_model.training_workflow.logreg_baseline import DANGEROUS_TOOLS
+from pattern_recognition_model.data import DANGEROUS_TOOLS
 
 dataset = Path(__file__).parent / "v1" / "data" / "rows.jsonl"
 

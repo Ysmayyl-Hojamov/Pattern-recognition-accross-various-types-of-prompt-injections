@@ -12,8 +12,7 @@ Authorized FPR:  12.00% (from 42.29% to 12.00%)
 import json
 import os
 from pathlib import Path
-
-from pattern_recognition_model.training_workflow.logreg_baseline import DANGEROUS_TOOLS
+from pattern_recognition_model.data import DANGEROUS_TOOLS
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = os.path.join(BASE_DIR, "data", "v1", "data", "rows.jsonl")
