@@ -77,6 +77,16 @@ B) Cross-suite. For instance, train on workspace, test on banking, travel, and S
 """
 
 
+def held_out_suite_split(
+    ds: pd.DataFrame, held_out_suites: list[str]
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    4 suites: workspace, travel, banking, and Slack
+    """
+    is_test = ds["suite"].isin(held_out_suites)
+    return ds[~is_test].reset_index(drop=True), ds[is_test].reset_index(drop=True)
+
+
 def held_out_task_split(
     ds: pd.DataFrame, held_out_tasks: list[str]
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
