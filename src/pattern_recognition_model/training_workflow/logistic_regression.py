@@ -6,7 +6,8 @@ I will include results of logistic regression both with them and without them.
 * No "spliced" runs in logistic regression. Do not include them.
 """
 
-from shutil import make_archive
+import argparse
+import sys
 
 import pandas as pd
 from sklearn.impute import SimpleImputer
@@ -106,20 +107,56 @@ def held_out_task_split(
 train_df, test_df = held_out_task_split(
     ds=frame, held_out_tasks=["injection_task_3", "injection_task_4"]
 )
-X_train, y_train = train_df[features], train_df["label"]
-X_test, y_test = test_df[features], test_df["label"]
 
-model = make_pipeline(
-    SimpleImputer(strategy="constant", fill_value=0),
-    StandardScaler(),
-    LogisticRegression(
-        class_weight="balanced",
-        max_iter=1000,
-    ),
+
+train_df, test_df = held_out_suite_split(
+    ds=frame, held_out_suites=["banking", "slack", "travel"]
 )
 
-model.fit(X_train, y_train)
-preds = model.predict(X_test)
-probs = model.predict_proba(X_test)[:, 1]
-print(classification_report(y_test, preds))
-print("ROC AUC:", roc_auc_score(y_test, probs))
+
+# For more complicated functions later
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--target", default="suite", choices=["suite", "task"])
+    return parser.parse_args(argv)
+
+
+def main():
+    """ """
+    held_out_object = sys.argv[1]
+
+    if held_out_object == "suite":
+        train_df, test_df = held_out_suite_split(
+            ds=frame, held_out_suites=["banking", "slack", "travel"]
+        )
+    elif held_out_object == "task":
+        train_df, test_df = held_out_task_split(
+            ds=frame, held_out_tasks=["injection_task_3", "injection_task_4"]
+        )
+    else:
+        sys.exit("Invalid held_out_object! Choose either 'suite' or 'task' ")
+
+    X_train, y_train = train_df[features], train_df["label"]
+    X_test, y_test = test_df[features], test_df["label"]
+
+    model = make_pipeline(
+        SimpleImputer(strategy="constant", fill_value=0),
+        StandardScaler(),
+        LogisticRegression(
+            class_weight="balanced",
+            max_iter=1000,
+        ),
+    )
+
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+    probs = model.predict_proba(X_test)[:, 1]
+    print(classification_report(y_test, preds))
+    print("ROC AUC:", roc_auc_score(y_test, probs))
+
+
+if __name__ == "__main__":
+    main()
