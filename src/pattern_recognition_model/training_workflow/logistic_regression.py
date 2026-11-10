@@ -73,7 +73,7 @@ Splitting into training and test sets.
 
 A) The first split is Held-out tasks. Authorized rows don't have assigned tasks to them. Thus we just exlcude them. 
 
-B) Cross-suite. For instance, train on workspace, test on banking, travel, and Slack.
+B) Cross-suite. For instance, train on workspace, and then test on banking, travel, and Slack.
 """
 
 
@@ -85,6 +85,7 @@ def held_out_suite_split(
 
     * Note: the banking suite is the most vulnerable suite. While workspace is the safest one
     """
+    # True if the suite is in the list (test).
     is_test = ds["suite"].isin(held_out_suites)
     return ds[~is_test].reset_index(drop=True), ds[is_test].reset_index(drop=True)
 
@@ -97,7 +98,7 @@ def held_out_task_split(
 
     * held_out_tasks list is comprised of injection tasks. The held out tasks are only in the training dataset
     """
-    # Exlcuded tasks
+    # Exlcuded tasks. True if the injection task is in the list
     is_test = ds["injection_task_id"].isin(held_out_tasks)
     return ds[~is_test].reset_index(drop=True), ds[is_test].reset_index(drop=True)
 
