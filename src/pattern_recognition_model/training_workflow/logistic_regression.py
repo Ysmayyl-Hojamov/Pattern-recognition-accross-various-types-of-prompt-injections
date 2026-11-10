@@ -82,6 +82,8 @@ def held_out_suite_split(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     4 suites: workspace, travel, banking, and Slack
+
+    * Note: the banking suite is the most vulnerable suite. While workspace is the safest one
     """
     is_test = ds["suite"].isin(held_out_suites)
     return ds[~is_test].reset_index(drop=True), ds[is_test].reset_index(drop=True)
