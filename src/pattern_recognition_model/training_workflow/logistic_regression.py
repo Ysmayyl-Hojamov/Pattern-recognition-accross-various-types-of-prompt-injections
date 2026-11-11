@@ -82,6 +82,9 @@ Splitting into training and test sets.
 A) The first split is Held-out tasks. Authorized rows don't have assigned tasks to them. Thus we just exlcude them from the testing sets for now.
 
 B) Cross-suite. For instance, train on workspace, and then test on banking, travel, and Slack.
+
+* Idea: I think it's worth if we pick random distributions of variables and 
+then save it somewhere in the log file to then compare it to the neural network I'm about to start training. For now, I have the needed data to compare against.
 """
 
 
