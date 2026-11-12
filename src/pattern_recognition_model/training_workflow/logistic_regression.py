@@ -11,10 +11,16 @@ I will include results of logistic regression both with them and without them.
 import argparse
 import sys
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report, roc_auc_score, roc_curve
+from sklearn.metrics import (
+    RocCurveDisplay,
+    classification_report,
+    roc_auc_score,
+    roc_curve,
+)
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -200,6 +206,9 @@ def main():
         print(f"FPR<={target:.0%}: recall={tpr[i]:.2f}")
 
     print("ROC AUC:", roc_auc_score(y_test, probs))
+    RocCurveDisplay.from_estimator(model, X_test, y_test)
+    plt.title(f"IN CONSIDERATION: {held_out_object}")
+    plt.show()
 
 
 if __name__ == "__main__":
