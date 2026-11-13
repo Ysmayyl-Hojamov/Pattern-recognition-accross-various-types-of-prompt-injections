@@ -5,7 +5,7 @@ I will include results of logistic regression both with them and without them.
 
 * No "spliced" runs in logistic regression. Do not include them.
 * Compare milestones X % FPR
-* See the weights of
+* See the weights of the defined features.
 """
 
 import argparse
