@@ -22,9 +22,11 @@ from sklearn.preprocessing import StandardScaler
 
 from pattern_recognition_model.utils.loaders import load_dataset
 
+INCLUDE_SPLICED = True
+
 ds = load_dataset(
     "v1",
-    include_spliced=False,
+    include_spliced=INCLUDE_SPLICED,
 )
 
 frame = pd.DataFrame(ds)
@@ -173,6 +175,7 @@ def evaluate_model(
             f"Benign FPR:     {_format_rate(benign_preds)}",
             f"Authorized FPR: {_format_rate(auth_preds)}",
             f"Held out:       {', '.join(held_out)}",
+            f"Is spliced: {INCLUDE_SPLICED}",
         ]
     )
 
@@ -184,6 +187,18 @@ def evaluate_model(
 
     lines.append(f"ROC AUC: {roc_auc_score(y_test, probs)}")
     return lines
+
+
+def filter_spliced(
+    test_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Only for testing set
+    """
+    is_test_spliced = test_df["trace_id"].str.startswith("runs_spliced/", na=False)
+    test_df = test_df[~is_test_spliced]
+
+    return test_df.reset_index(drop=True)
 
 
 def run_seeds(
@@ -232,6 +247,9 @@ def main() -> None:
         )
     else:
         train_df, test_df = held_out_task_split(ds=frame, held_out_tasks=args.held_out)
+
+    # Removing spliced traces. Preventing the edge case when all rows in test set are spliced.
+    test_df = filter_spliced(test_df=test_df)
 
     if test_df.empty:
         sys.exit(f"No rows matched held-out {args.split_by}(s): {args.held_out}")
