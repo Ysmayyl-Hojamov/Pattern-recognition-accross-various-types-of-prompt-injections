@@ -227,9 +227,10 @@ def run_seeds(
         model.fit(X_train, y_train)
 
         lines = evaluate_model(model, X_test, y_test, test_df, held_out, seed=seed)
-        (out_dir / f"{held_out_object}_{slug}_seed_{seed}.txt").write_text(
-            "\n".join(lines)
-        )
+        (
+            out_dir
+            / f"{held_out_object}_{slug}_seed_{seed}_spliced_{INCLUDE_SPLICED}.txt"
+        ).write_text("\n".join(lines))
         print(f"seed {seed} done")
 
 
