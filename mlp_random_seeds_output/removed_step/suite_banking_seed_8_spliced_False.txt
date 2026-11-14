@@ -1,0 +1,21 @@
+seed: 8
+              precision    recall  f1-score   support
+
+           0       0.82      0.95      0.88      1954
+           1       0.45      0.16      0.24       479
+
+    accuracy                           0.80      2433
+   macro avg       0.63      0.56      0.56      2433
+weighted avg       0.75      0.80      0.76      2433
+
+RECALL:         16.28% (78/479)
+Benign FPR:     2.86% (1/35)
+Authorized FPR: 0.00% (0/74)
+Held out:       banking
+Is spliced: False
+'step' feature removed: True
+FPR<=1%: recall=0.00
+FPR<=5%: recall=0.16
+FPR<=10%: recall=0.24
+FPR<=20%: recall=0.87
+ROC AUC: 0.8001353681650829

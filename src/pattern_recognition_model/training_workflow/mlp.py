@@ -22,7 +22,7 @@ from sklearn.preprocessing import StandardScaler
 
 from pattern_recognition_model.utils.loaders import load_dataset
 
-INCLUDE_SPLICED = True
+INCLUDE_SPLICED = False
 
 ds = load_dataset(
     "v1",
@@ -66,7 +66,10 @@ features = [
     "frac_args_in_prompt",
     "frac_args_in_read",
     "arg_only_from_read",
-    "step",
+    # Step feature might be detrimental to generalization ability of the model
+    # when added spliced runs as they usually
+    # have more steps in them. Ablation study
+    # "step",
     "is_outbound",
     "is_destructive",
     "is_mutation",
@@ -156,6 +159,7 @@ def evaluate_model(
     test_df: pd.DataFrame,
     held_out: list[str],
     seed: int | None = None,
+    step: bool | None = None,
 ) -> list[str]:
     preds = model.predict(X_test)
     probs = model.predict_proba(X_test)[:, 1]
@@ -176,6 +180,7 @@ def evaluate_model(
             f"Authorized FPR: {_format_rate(auth_preds)}",
             f"Held out:       {', '.join(held_out)}",
             f"Is spliced: {INCLUDE_SPLICED}",
+            f"'step' feature removed: {step}",
         ]
     )
 
@@ -211,7 +216,7 @@ def run_seeds(
     Trains the MLP with seeds 0-9 on the same split and saves one txt file per
     seed in mlp_random_seeds_output, e.g. suite_workspace_slack_seed_3.txt
     """
-    out_dir = Path("mlp_random_seeds_output")
+    out_dir = Path("mlp_random_seeds_output/removed_step")
     out_dir.mkdir(exist_ok=True)
     slug = "_".join(held_out)
 
@@ -226,7 +231,9 @@ def run_seeds(
         )
         model.fit(X_train, y_train)
 
-        lines = evaluate_model(model, X_test, y_test, test_df, held_out, seed=seed)
+        lines = evaluate_model(
+            model, X_test, y_test, test_df, held_out, seed=seed, step=True
+        )
         (
             out_dir
             / f"{held_out_object}_{slug}_seed_{seed}_spliced_{INCLUDE_SPLICED}.txt"
