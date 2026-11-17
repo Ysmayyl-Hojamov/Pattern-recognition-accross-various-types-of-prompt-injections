@@ -1,3 +1,7 @@
+"""
+Summarization when given txt files.
+"""
+
 import re
 import sys
 from collections import defaultdict
