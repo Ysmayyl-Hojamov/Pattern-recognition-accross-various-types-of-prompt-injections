@@ -7,6 +7,7 @@ import json
 
 BATCH_SIZE = 128
 MODEL_NAME = "BAAI/bge-small-en-v1.5"
+DATASET_VERSION = "v1"
 
 if torch.cuda.is_available():
     device = "cuda"  # NVIDIA GPU
@@ -49,7 +50,7 @@ def main():
     """
     Main function to load the dataset and extract user prompts.
     """
-    ds = load_dataset("v1", include_spliced=False)
+    ds = load_dataset(DATASET_VERSION, include_spliced=False)
 
     user_texts = [ds[i]["user_prompt"] for i in range(len(ds))]  # type: ignore
 
@@ -81,10 +82,22 @@ def main():
     emb_prev_tools = encode_in_batches(prev_tools)
     emb_read_digest = encode_in_batches(read_digest)
 
-    torch.save(emb_user_texts, os.path.join(BASE_DIR, "data", "emb_user_texts.pt"))
-    torch.save(emb_tool_args, os.path.join(BASE_DIR, "data", "emb_tool_args.pt"))
-    torch.save(emb_prev_tools, os.path.join(BASE_DIR, "data", "emb_prev_tools.pt"))
-    torch.save(emb_read_digest, os.path.join(BASE_DIR, "data", "emb_read_digest.pt"))
+    torch.save(
+        emb_user_texts,
+        os.path.join(BASE_DIR, "data", DATASET_VERSION, "emb_user_texts.pt"),
+    )
+    torch.save(
+        emb_tool_args,
+        os.path.join(BASE_DIR, "data", DATASET_VERSION, "emb_tool_args.pt"),
+    )
+    torch.save(
+        emb_prev_tools,
+        os.path.join(BASE_DIR, "data", DATASET_VERSION, "emb_prev_tools.pt"),
+    )
+    torch.save(
+        emb_read_digest,
+        os.path.join(BASE_DIR, "data", DATASET_VERSION, "emb_read_digest.pt"),
+    )
 
 
 if __name__ == "__main__":
