@@ -1,1 +1,1 @@
-from .loaders import load_dataset
+from .loaders import load_dataset, BASE_DIR
