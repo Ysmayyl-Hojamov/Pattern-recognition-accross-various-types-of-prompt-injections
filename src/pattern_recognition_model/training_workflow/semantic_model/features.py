@@ -3,16 +3,11 @@
 These features are derived from the tool name and other attributes of the data.
 
 1st Branch (A): hard facts and cos similarity without taking into account any text besides aligment.
-2nd Branch: semantic features. derived from the embedding files
+2nd Branch (B): semantic features. derived from the embedding files
 """
 
-from pathlib import Path
-
 import pandas as pd
-
 import torch
-
-
 from pattern_recognition_model.utils import load_dataset, load_emb
 
 INCLUDE_SPLICED = False
@@ -93,7 +88,7 @@ def filter_spliced(
     return test_df.reset_index(drop=True)
 
 
-# Cosine_similarity
+# Cosine_similarity. dim=1 because we summarize the COLUMNS of ONE row
 sim_prompt_to_action = (emb_user_texts * emb_tool_args).sum(dim=1)
 sim_read_to_action = (emb_read_digest * emb_tool_args).sum(dim=1)
 
