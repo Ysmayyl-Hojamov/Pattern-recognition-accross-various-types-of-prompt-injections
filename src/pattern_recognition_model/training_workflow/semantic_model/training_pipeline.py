@@ -14,6 +14,7 @@ labels = torch.tensor(frame["label"].values, dtype=torch.float32).unsqueeze(1)
 a_train, a_test, b_train, b_test, y_train, y_test = train_test_split(
     branch_a_features, branch_b_features, labels, test_size=0.2, random_state=42
 )
+
 train_dataset = TensorDataset(a_train, b_train, y_train)
 test_dataset = TensorDataset(a_test, b_test, y_test)
 
