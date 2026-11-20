@@ -63,17 +63,21 @@ features = [
     # Step feature might be detrimental to generalization ability of the model
     # when added spliced runs as they usually
     # have more steps in them. Ablation study
-    # "step",
+    "step",
     "is_outbound",
     "is_destructive",
     "is_mutation",
     "is_readonly",
 ]
 
+
 frame["is_outbound"] = frame["tool"].apply(is_outbound)
 frame["is_destructive"] = frame["tool"].apply(is_destructive)
 frame["is_mutation"] = frame["tool"].apply(is_mutation)
 frame["is_readonly"] = frame["tool"].apply(is_readonly)
+
+# Converting bool to int
+frame["arg_only_from_read"] = frame["arg_only_from_read"].astype(int)
 
 
 def filter_spliced(
@@ -88,11 +92,25 @@ def filter_spliced(
     return test_df.reset_index(drop=True)
 
 
+"""
+To mitigate NaNs in the features, we will fill them with 0.
+"""
+# 1. Fill any missing data in your structural features with 0
+frame[features] = frame[features].fillna(0)
+
+# 2. Make sure your labels don't have any missing values either
+frame["label"] = frame["label"].fillna(0)
+
+# 3. NOW convert to tensors
+hard_features_tensor = torch.tensor(frame[features].values, dtype=torch.float32)
+print(frame[features].dtypes)
+
 # Cosine_similarity. dim=1 because we summarize the COLUMNS of ONE row
 sim_prompt_to_action = (emb_user_texts * emb_tool_args).sum(dim=1)
 sim_read_to_action = (emb_read_digest * emb_tool_args).sum(dim=1)
 
 sim_alignment_gap = sim_prompt_to_action - sim_read_to_action
+
 
 sim_features = torch.stack(
     [sim_prompt_to_action, sim_read_to_action, sim_alignment_gap], dim=1
@@ -101,3 +119,11 @@ sim_features = torch.stack(
 hard_features_tensor = torch.tensor(frame[features].values, dtype=torch.float32)
 
 branch_a_features = torch.cat([hard_features_tensor, sim_features], dim=1)
+
+branch_b_features = torch.stack(
+    [emb_prev_tools, emb_read_digest, emb_tool_args, emb_user_texts], dim=1
+)
+
+print(branch_a_features.shape)  # expect (n, 11), or (n, 12) if step is enabled
+print(branch_b_features.shape)  # expect (n, 4, 384)
+print(len(frame))  # should equal n
