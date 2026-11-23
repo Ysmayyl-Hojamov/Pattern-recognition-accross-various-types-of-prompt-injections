@@ -74,15 +74,15 @@ def evaluate_pytorch_model(
     preds = (all_probs > 0.5).astype(int)
 
     # Filter metrics using the exact same Pandas dataframe logic
-    pos_preds = preds[test_df["label"] == 1]
-    benign_preds = preds[test_df["kind"] == "benign"]
-    auth_preds = preds[test_df["kind"] == "authorized"]
+    pos_preds = preds[test_df["label"].values == 1]
+    benign_preds = preds[test_df["kind"].values == "benign"]
+    auth_preds = preds[test_df["kind"].values == "authorized"]
 
     lines = []
     lines.append(f"seed: {seed}")
     lines.extend(
         [
-            str(classification_report(all_labels, preds)),
+            str(classification_report(all_labels, preds, zero_division=0)),
             f"RECALL:         {_format_rate(pos_preds)}",
             f"Benign FPR:     {_format_rate(benign_preds)}",
             f"Authorized FPR: {_format_rate(auth_preds)}",
@@ -115,13 +115,14 @@ def run_pytorch_seeds(
     include_spliced,
     step_removed,
 ):
-    out_dir = Path(
-        "mlp_random_seeds_output/removed_step"
-        if step_removed
-        else "mlp_random_seeds_output/spliced"
-    )
-    out_dir.mkdir(parents=True, exist_ok=True)
     slug = "_".join(held_out)
+    # Include_spliced/!include_spliced, removed_step + spliced/ removed_step + !spliced
+    folder_name = f"held_out_{split_by}_{slug}_step_removed_{step_removed}_spliced_{include_spliced}"
+    if step_removed:
+        out_dir = Path(f"torch_model_outputs/step_removed/{folder_name}")
+    else:
+        out_dir = Path(f"torch_model_outputs/spliced_runs_data/{folder_name}")
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     train_loader = DataLoader(
         TensorDataset(a_train, b_train, y_train), batch_size=32, shuffle=True
@@ -137,7 +138,10 @@ def run_pytorch_seeds(
 
         # Initialize fresh model dynamically (handles 12 vs 11 features if step is removed)
         model = SemanticModel(branch_a_dim=a_train.shape[1])
-        criterion = torch.nn.BCEWithLogitsLoss()
+        num_zeros = (y_train == 0).sum().item()
+        num_ones = (y_train == 1).sum().item()
+        pos_weight = torch.tensor([num_zeros / num_ones], dtype=torch.float32)
+        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
         # Train
@@ -154,7 +158,8 @@ def run_pytorch_seeds(
             model, test_loader, test_df, held_out, seed, include_spliced, step_removed
         )
         file_path = (
-            out_dir / f"{split_by}_{slug}_seed_{seed}_spliced_{include_spliced}.txt"
+            out_dir
+            / f"{split_by}_{slug}_seed_{seed}_spliced_{include_spliced}_step_removed-{step_removed}.txt"
         )
         file_path.write_text("\n".join(lines))
         print(f"Seed {seed} complete.")
@@ -204,6 +209,22 @@ def main():
 
     current_branch_a_dim = a_train.shape[1]
 
+    if args.seeds:
+        run_pytorch_seeds(
+            a_train,
+            b_train,
+            y_train,
+            a_test,
+            b_test,
+            y_test,
+            frame.loc[test_idx],
+            args.split_by,
+            args.held_out,
+            args.include_spliced,
+            args.remove_step,
+        )
+        return
+
     train_loader = DataLoader(
         TensorDataset(a_train, b_train, y_train), batch_size=32, shuffle=True
     )
@@ -212,8 +233,13 @@ def main():
     )
 
     # 2. Initialize Model & Training Tools
-    model = SemanticModel()
-    criterion = torch.nn.BCEWithLogitsLoss()
+    model = SemanticModel(branch_a_dim=current_branch_a_dim)
+    num_zeros = (y_train == 0).sum()
+    num_ones = (y_train == 1).sum()
+    pos_weight = torch.tensor([num_zeros / num_ones], dtype=torch.float32)
+    # Use BCEWithLogitsLoss with pos_weight to handle class imbalance.
+    # Penalizes false negatives more heavily, which is important in security contexts.
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     EPOCHS = 5
 
