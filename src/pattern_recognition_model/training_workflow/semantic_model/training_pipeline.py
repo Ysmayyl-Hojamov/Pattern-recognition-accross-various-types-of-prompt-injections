@@ -1,3 +1,8 @@
+"""
+TO-DO:
+Make the code more modular to avoid duplicating it.
+"""
+
 import argparse
 import sys
 import torch
