@@ -17,6 +17,8 @@ from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
 from pathlib import Path
 
+from transformers.convert_slow_tokenizers_checkpoints_to_fast import args
+
 # Import your data
 from pattern_recognition_model.training_workflow.semantic_model import (
     frame,
@@ -182,19 +184,23 @@ def main():
             "user_task_id"
         ].isin(args.held_out)
 
-    train_idx = frame.index[~is_test]
-    test_idx = frame.index[is_test]
+    is_spliced = frame["trace_id"].str.contains("runs_spliced", na=False)
 
-    is_test_spliced = frame.loc[test_idx, "trace_id"].str.startswith(
-        "runs_spliced/", na=False
+    if args.include_spliced:
+        # Force spliced runs into train, completely remove from test
+        train_mask = (~is_test) | is_spliced
+        test_mask = is_test & (~is_spliced)
+    else:
+        # Remove spliced runs entirely from everywhere
+        train_mask = (~is_test) & (~is_spliced)
+        test_mask = is_test & (~is_spliced)
+
+    train_idx = frame.index[train_mask]
+    test_idx = frame.index[test_mask]
+
+    print(
+        f"Train size: {len(train_idx)} | Test size: {len(test_idx)}; TOTAL: {len(test_idx) + len(train_idx)}"
     )
-    test_idx = test_idx[~is_test_spliced]
-
-    if not args.include_spliced:
-        is_train_spliced = frame.loc[train_idx, "trace_id"].str.startswith(
-            "runs_spliced/", na=False
-        )
-        train_idx = train_idx[~is_train_spliced]
 
     if len(test_idx) == 0:
         sys.exit(f"No rows matched held-out {args.split_by}(s): {args.held_out}")
@@ -246,7 +252,7 @@ def main():
     # Penalizes false negatives more heavily, which is important in security contexts.
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    EPOCHS = 5
+    EPOCHS = 10
 
     # 3. Training Loop
     print("\nStarting Training...")

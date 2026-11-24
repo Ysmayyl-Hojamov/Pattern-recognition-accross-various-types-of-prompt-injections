@@ -22,10 +22,11 @@ from sklearn.preprocessing import StandardScaler
 
 from pattern_recognition_model.utils.loaders import load_dataset
 
-INCLUDE_SPLICED = False
+# 1. ALWAYS load spliced data initially so the dataframe has it
+INCLUDE_SPLICED = True
 
 ds = load_dataset(
-    "v1",
+    "v2",
     include_spliced=INCLUDE_SPLICED,
 )
 
@@ -66,10 +67,7 @@ features = [
     "frac_args_in_prompt",
     "frac_args_in_read",
     "arg_only_from_read",
-    # Step feature might be detrimental to generalization ability of the model
-    # when added spliced runs as they usually
-    # have more steps in them. Ablation study
-    # "step",
+    "step",  # Now uncommented; dynamically removed by the arg parser
     "is_outbound",
     "is_destructive",
     "is_mutation",
@@ -80,46 +78,6 @@ frame["is_outbound"] = frame["tool"].apply(is_outbound)
 frame["is_destructive"] = frame["tool"].apply(is_destructive)
 frame["is_mutation"] = frame["tool"].apply(is_mutation)
 frame["is_readonly"] = frame["tool"].apply(is_readonly)
-
-
-def held_out_suite_split(
-    ds: pd.DataFrame,
-    held_out_suites: list[str] = [
-        "workspace",
-        "slack",
-        "travel",
-    ],
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    4 suites: workspace, travel, banking, and Slack
-
-    - Note: the banking suite is the most vulnerable suite, while workspace is the safest one.
-    """
-    is_test = ds["suite"].isin(held_out_suites)
-    return ds[~is_test].reset_index(drop=True), ds[is_test].reset_index(drop=True)
-
-
-def held_out_task_split(
-    ds: pd.DataFrame,
-    held_out_tasks: list[str] = [
-        "injection_task_3",
-        "injection_task_4",
-        "injection_task_5",
-        # Adding benign user tasks to see whether the model will recognize a benign session
-        "user_task_9",
-        "user_task_8",
-        "user_task_7",
-    ],
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    No "spliced" runs.
-    held_out_tasks are placed exclusively in the test set.
-    """
-    # Authorized rows have injection attack ID in user_task_id.
-    is_test = ds["injection_task_id"].isin(held_out_tasks) | ds["user_task_id"].isin(
-        held_out_tasks
-    )
-    return ds[~is_test].reset_index(drop=True), ds[is_test].reset_index(drop=True)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -137,6 +95,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         nargs="+",
         required=True,
         help="One or more suites or tasks to hold out (e.g. --held-out workspace slack)",
+    )
+    parser.add_argument(
+        "--include-spliced",
+        action="store_true",
+        help="Include spliced runs in training set",
+    )
+    parser.add_argument(
+        "--remove-step",
+        action="store_true",
+        help="Remove the step feature for ablation",
     )
     parser.add_argument(
         "--seeds",
@@ -158,8 +126,9 @@ def evaluate_model(
     y_test: pd.Series,
     test_df: pd.DataFrame,
     held_out: list[str],
+    include_spliced: bool,
+    step_removed: bool,
     seed: int | None = None,
-    step: bool | None = None,
 ) -> list[str]:
     preds = model.predict(X_test)
     probs = model.predict_proba(X_test)[:, 1]
@@ -174,13 +143,13 @@ def evaluate_model(
 
     lines.extend(
         [
-            str(classification_report(y_test, preds)),
+            str(classification_report(y_test, preds, zero_division=0)),
             f"RECALL:         {_format_rate(pos_preds)}",
             f"Benign FPR:     {_format_rate(benign_preds)}",
             f"Authorized FPR: {_format_rate(auth_preds)}",
             f"Held out:       {', '.join(held_out)}",
-            f"Is spliced: {INCLUDE_SPLICED}",
-            f"'step' feature removed: {step}",
+            f"Is spliced: {include_spliced}",
+            f"'step' feature removed: {step_removed}",
         ]
     )
 
@@ -194,34 +163,27 @@ def evaluate_model(
     return lines
 
 
-def filter_spliced(
-    test_df: pd.DataFrame,
-) -> pd.DataFrame:
-    """
-    Only for testing set
-    """
-    is_test_spliced = test_df["trace_id"].str.startswith("runs_spliced/", na=False)
-    test_df = test_df[~is_test_spliced]
-
-    return test_df.reset_index(drop=True)
-
-
 def run_seeds(
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,
     held_out_object: str,
     held_out: list[str],
+    current_features: list[str],
+    include_spliced: bool,
+    step_removed: bool,
 ) -> None:
-    """
-    Trains the MLP with seeds 0-9 on the same split and saves one txt file per
-    seed in mlp_random_seeds_output, e.g. suite_workspace_slack_seed_3.txt
-    """
-    out_dir = Path("mlp_random_seeds_output/removed_step")
-    out_dir.mkdir(exist_ok=True)
     slug = "_".join(held_out)
+    folder_name = f"held_out_{held_out_object}_{slug}_step_removed_{step_removed}_spliced_{include_spliced}"
 
-    X_train, y_train = train_df[features], train_df["label"]
-    X_test, y_test = test_df[features], test_df["label"]
+    if step_removed:
+        out_dir = Path(f"mlp_random_seeds_output/step_removed/{folder_name}")
+    else:
+        out_dir = Path(f"mlp_random_seeds_output/spliced_runs_data/{folder_name}")
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    X_train, y_train = train_df[current_features], train_df["label"]
+    X_test, y_test = test_df[current_features], test_df["label"]
 
     for seed in range(10):
         model = make_pipeline(
@@ -232,42 +194,73 @@ def run_seeds(
         model.fit(X_train, y_train)
 
         lines = evaluate_model(
-            model, X_test, y_test, test_df, held_out, seed=seed, step=True
+            model,
+            X_test,
+            y_test,
+            test_df,
+            held_out,
+            include_spliced,
+            step_removed,
+            seed=seed,
         )
-        (
+
+        file_path = (
             out_dir
-            / f"{held_out_object}_{slug}_seed_{seed}_spliced_{INCLUDE_SPLICED}.txt"
-        ).write_text("\n".join(lines))
-        print(f"seed {seed} done")
+            / f"{held_out_object}_{slug}_seed_{seed}_spliced_{include_spliced}_step_removed-{step_removed}.txt"
+        )
+        file_path.write_text("\n".join(lines))
+        print(f"Seed {seed} complete.")
 
 
 def main() -> None:
-    """
-    Examples:
-        uv run mlp.py suite --held-out workspace slack
-        uv run mlp.py task --held-out injection_task_3 --seeds
-    """
     args = parse_args()
+    print(f"Holding out {args.split_by}(s): {', '.join(args.held_out)}")
 
+    # 1. Custom Data Split (Matches PyTorch script logic)
     if args.split_by == "suite":
-        train_df, test_df = held_out_suite_split(
-            ds=frame, held_out_suites=args.held_out
-        )
+        is_test = frame["suite"].isin(args.held_out)
     else:
-        train_df, test_df = held_out_task_split(ds=frame, held_out_tasks=args.held_out)
+        is_test = frame["injection_task_id"].isin(args.held_out) | frame[
+            "user_task_id"
+        ].isin(args.held_out)
 
-    # Removing spliced traces. Preventing the edge case when all rows in test set are spliced.
-    test_df = filter_spliced(test_df=test_df)
+    is_spliced = frame["trace_id"].str.contains("runs_spliced", na=False)
+
+    if args.include_spliced:
+        # Force spliced runs into train, completely remove from test
+        train_mask = (~is_test) | is_spliced
+        test_mask = is_test & (~is_spliced)
+    else:
+        # Remove spliced runs entirely from everywhere
+        train_mask = (~is_test) & (~is_spliced)
+        test_mask = is_test & (~is_spliced)
+
+    train_df = frame[train_mask].reset_index(drop=True)
+    test_df = frame[test_mask].reset_index(drop=True)
 
     if test_df.empty:
         sys.exit(f"No rows matched held-out {args.split_by}(s): {args.held_out}")
 
+    # 2. Dynamic Feature Selection
+    current_features = features.copy()
+    if args.remove_step:
+        current_features.remove("step")
+
     if args.seeds:
-        run_seeds(train_df, test_df, args.split_by, args.held_out)
+        run_seeds(
+            train_df,
+            test_df,
+            args.split_by,
+            args.held_out,
+            current_features,
+            args.include_spliced,
+            args.remove_step,
+        )
         return
 
-    X_train, y_train = train_df[features], train_df["label"]
-    X_test, y_test = test_df[features], test_df["label"]
+    # 3. Standard Evaluation
+    X_train, y_train = train_df[current_features], train_df["label"]
+    X_test, y_test = test_df[current_features], test_df["label"]
 
     model = make_pipeline(
         SimpleImputer(strategy="constant", fill_value=0),
@@ -276,7 +269,15 @@ def main() -> None:
     )
     model.fit(X_train, y_train)
 
-    lines = evaluate_model(model, X_test, y_test, test_df, args.held_out)
+    lines = evaluate_model(
+        model,
+        X_test,
+        y_test,
+        test_df,
+        args.held_out,
+        args.include_spliced,
+        args.remove_step,
+    )
     print("\n".join(lines))
 
     RocCurveDisplay.from_estimator(model, X_test, y_test)

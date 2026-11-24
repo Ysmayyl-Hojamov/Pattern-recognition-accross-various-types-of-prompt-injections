@@ -10,7 +10,8 @@ import pandas as pd
 import torch
 from pattern_recognition_model.utils import load_dataset, load_emb
 
-INCLUDE_SPLICED = False
+# It is then decided whether to keep them in training_pipeline.py
+INCLUDE_SPLICED = True
 
 emb_prev_tools = load_emb("prev_tools")
 emb_read_digest = load_emb("read_digest")

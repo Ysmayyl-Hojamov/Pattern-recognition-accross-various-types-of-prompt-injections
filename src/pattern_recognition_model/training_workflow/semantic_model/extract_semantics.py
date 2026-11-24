@@ -7,7 +7,7 @@ import json
 
 BATCH_SIZE = 128
 MODEL_NAME = "BAAI/bge-small-en-v1.5"
-DATASET_VERSION = "v1"
+DATASET_VERSION = "v2"
 
 if torch.cuda.is_available():
     device = "cuda"  # NVIDIA GPU
@@ -50,7 +50,7 @@ def main():
     """
     Main function to load the dataset and extract user prompts.
     """
-    ds = load_dataset(DATASET_VERSION, include_spliced=False)
+    ds = load_dataset(DATASET_VERSION, include_spliced=True)
 
     user_texts = [ds[i]["user_prompt"] for i in range(len(ds))]  # type: ignore
 

@@ -66,6 +66,7 @@ for (split_name, is_spliced), metrics in sorted(grouped.items()):
 
 report = "\n".join(lines) + "\n"
 
+# Change the path relative to the output
 out_dir = Path("torch_model_outputs") / "summarized_results"
 out_dir.mkdir(parents=True, exist_ok=True)
 out_file = out_dir / f"{case_name}_summary.txt"
