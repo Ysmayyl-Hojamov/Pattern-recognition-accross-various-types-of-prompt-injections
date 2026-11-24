@@ -1,13 +1,13 @@
 """
-I definitely have to clean up the code!
+It's just a simple hard coded baseline to beat. I will clean up the code a bit later.
 """
 
 import json
-from pathlib import Path
+import sys
 
 from pattern_recognition_model.data import DANGEROUS_TOOLS
 
-dataset = Path(__file__).parent / "v1" / "data" / "rows.jsonl"
+dataset = sys.argv[1]
 
 with open(dataset, "r", encoding="utf-8") as file:
     """
