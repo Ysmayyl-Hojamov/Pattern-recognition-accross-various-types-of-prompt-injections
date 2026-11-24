@@ -25,7 +25,7 @@ grouped: dict[tuple[str, str], dict[str, list[float]]] = defaultdict(
     lambda: defaultdict(list)
 )
 
-for path in sorted(folder.glob("*.txt")):
+for path in sorted(folder.rglob("*.txt")):
     text = path.read_text()
     held_match = re.search(r"Held out:\s*(.+)", text)
     if not held_match:
