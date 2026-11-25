@@ -152,7 +152,7 @@ def run_pytorch_seeds(
 
         # Train
         model.train()
-        for _ in range(EPOCHS):  # Adjusted to 5 to prevent overfitting
+        for _ in range(EPOCHS):
             for batch_a, batch_b, batch_y in train_loader:
                 optimizer.zero_grad()
                 loss = criterion(model(batch_a, batch_b), batch_y)
@@ -236,32 +236,46 @@ def main():
         )
         return
 
+    model = SemanticModel(branch_a_dim=current_branch_a_dim)
+
+    """
+     Penalty policy; 
+     #1 is for mislabeled attacks
+     #2 mislabeled authorized requests
+    """
+
+    # 1
+    num_zeros = (y_train == 0).sum().item()
+    num_ones = (y_train == 1).sum().item()
+
+    sample_weights = np.ones(len(frame), dtype=np.float32)
+    sample_weights[frame["label"].values == 1] = num_zeros / num_ones
+
+    # 2
+    is_auth = frame["kind"].values == "authorized"
+    sample_weights[is_auth] = 8.0
+
+    criterion = torch.nn.BCEWithLogitsLoss(reduction="none")
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    w_train = torch.tensor(sample_weights[train_idx], dtype=torch.float32).unsqueeze(1)
+
     train_loader = DataLoader(
-        TensorDataset(a_train, b_train, y_train), batch_size=32, shuffle=True
+        TensorDataset(a_train, b_train, y_train, w_train), batch_size=32, shuffle=True
     )
     test_loader = DataLoader(
         TensorDataset(a_test, b_test, y_test), batch_size=32, shuffle=False
     )
-
-    # 2. Initialize Model & Training Tools
-    model = SemanticModel(branch_a_dim=current_branch_a_dim)
-    num_zeros = (y_train == 0).sum()
-    num_ones = (y_train == 1).sum()
-    pos_weight = torch.tensor([num_zeros / num_ones], dtype=torch.float32)
-    # Use BCEWithLogitsLoss with pos_weight to handle class imbalance.
-    # Penalizes false negatives more heavily, which is important in security contexts.
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # 3. Training Loop
     print("\nStarting Training...")
     for epoch in range(EPOCHS):
         model.train()
         total_train_loss = 0
-        for batch_a, batch_b, batch_y in train_loader:
+        for batch_a, batch_b, batch_y, batch_w in train_loader:
             optimizer.zero_grad()
             predictions = model(batch_a, batch_b)
-            loss = criterion(predictions, batch_y)
+            loss = (criterion(predictions, batch_y) * batch_w).mean()
             loss.backward()
             optimizer.step()
             total_train_loss += loss.item()
