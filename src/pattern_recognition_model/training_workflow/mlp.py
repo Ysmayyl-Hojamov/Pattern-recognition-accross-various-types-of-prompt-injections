@@ -20,13 +20,14 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from pattern_recognition_model.utils.loaders import load_dataset
+from pattern_recognition_model.utils import load_dataset
+from pattern_recognition_model.utils import DATASET_VERSION
 
 # 1. ALWAYS load spliced data initially so the dataframe has it
 INCLUDE_SPLICED = True
 
 ds = load_dataset(
-    "v2",
+    DATASET_VERSION,
     include_spliced=INCLUDE_SPLICED,
 )
 

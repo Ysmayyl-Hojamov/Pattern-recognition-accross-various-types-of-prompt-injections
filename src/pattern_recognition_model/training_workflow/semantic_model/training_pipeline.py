@@ -17,8 +17,6 @@ from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
 from pathlib import Path
 
-from transformers.convert_slow_tokenizers_checkpoints_to_fast import args
-
 # Import your data
 from pattern_recognition_model.training_workflow.semantic_model import (
     frame,
@@ -29,6 +27,7 @@ from pattern_recognition_model.training_workflow.semantic_model import (
 )
 
 REMOVE_STEP = False
+EPOCHS = 10
 
 
 def parse_args():
@@ -153,7 +152,7 @@ def run_pytorch_seeds(
 
         # Train
         model.train()
-        for epoch in range(5):  # Adjusted to 5 to prevent overfitting
+        for _ in range(EPOCHS):  # Adjusted to 5 to prevent overfitting
             for batch_a, batch_b, batch_y in train_loader:
                 optimizer.zero_grad()
                 loss = criterion(model(batch_a, batch_b), batch_y)
@@ -187,8 +186,9 @@ def main():
     is_spliced = frame["trace_id"].str.contains("runs_spliced", na=False)
 
     if args.include_spliced:
-        # Force spliced runs into train, completely remove from test
-        train_mask = (~is_test) | is_spliced
+        # Force spliced runs into train, completely remove from test.
+        # Sensitive
+        train_mask = ~is_test
         test_mask = is_test & (~is_spliced)
     else:
         # Remove spliced runs entirely from everywhere
@@ -252,7 +252,6 @@ def main():
     # Penalizes false negatives more heavily, which is important in security contexts.
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    EPOCHS = 10
 
     # 3. Training Loop
     print("\nStarting Training...")

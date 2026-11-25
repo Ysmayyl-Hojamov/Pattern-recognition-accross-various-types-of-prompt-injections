@@ -8,19 +8,19 @@ These features are derived from the tool name and other attributes of the data.
 
 import pandas as pd
 import torch
-from pattern_recognition_model.utils import load_dataset, load_emb
+from pattern_recognition_model.utils import load_dataset, load_emb, DATASET_VERSION
 
 # It is then decided whether to keep them in training_pipeline.py
 INCLUDE_SPLICED = True
 
-emb_prev_tools = load_emb("prev_tools")
-emb_read_digest = load_emb("read_digest")
-emb_tool_args = load_emb("tool_args")
-emb_user_texts = load_emb("user_texts")
+emb_prev_tools = load_emb("prev_tools", dataset_v=DATASET_VERSION)
+emb_read_digest = load_emb("read_digest", dataset_v=DATASET_VERSION)
+emb_tool_args = load_emb("tool_args", dataset_v=DATASET_VERSION)
+emb_user_texts = load_emb("user_texts", dataset_v=DATASET_VERSION)
 
 
 ds = load_dataset(
-    "v1",
+    DATASET_VERSION,
     include_spliced=INCLUDE_SPLICED,
 )
 

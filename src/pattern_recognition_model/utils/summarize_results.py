@@ -70,7 +70,7 @@ report = "\n".join(lines) + "\n"
 out_dir = Path("torch_model_outputs") / "summarized_results"
 out_dir.mkdir(parents=True, exist_ok=True)
 out_file = out_dir / f"{case_name}_summary.txt"
-out_file.write_text(report)
+out_file.write_text(report, encoding="utf-8")
 
 print(report)
 print(f"Saved summary to {out_file}")

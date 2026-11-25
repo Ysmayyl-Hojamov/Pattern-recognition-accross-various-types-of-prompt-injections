@@ -25,10 +25,10 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 
-from pattern_recognition_model.utils.loaders import load_dataset
+from pattern_recognition_model.utils import load_dataset, DATASET_VERSION
 
 ds = load_dataset(
-    "v1",
+    DATASET_VERSION,
     include_spliced=False,
 )
 
