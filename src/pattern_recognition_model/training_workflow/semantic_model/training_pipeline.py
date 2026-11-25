@@ -120,6 +120,7 @@ def run_pytorch_seeds(
     held_out,
     include_spliced,
     step_removed,
+    w_train,
 ):
     slug = "_".join(held_out)
     # Include_spliced/!include_spliced, removed_step + spliced/ removed_step + !spliced
@@ -131,7 +132,7 @@ def run_pytorch_seeds(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     train_loader = DataLoader(
-        TensorDataset(a_train, b_train, y_train), batch_size=32, shuffle=True
+        TensorDataset(a_train, b_train, y_train, w_train), batch_size=32, shuffle=True
     )
     test_loader = DataLoader(
         TensorDataset(a_test, b_test, y_test), batch_size=32, shuffle=False
@@ -146,16 +147,17 @@ def run_pytorch_seeds(
         model = SemanticModel(branch_a_dim=a_train.shape[1])
         num_zeros = (y_train == 0).sum().item()
         num_ones = (y_train == 1).sum().item()
-        pos_weight = torch.tensor([num_zeros / num_ones], dtype=torch.float32)
-        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+        criterion = torch.nn.BCEWithLogitsLoss(reduction="none")
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
         # Train
         model.train()
         for _ in range(EPOCHS):
-            for batch_a, batch_b, batch_y in train_loader:
+            for batch_a, batch_b, batch_y, batch_w in train_loader:
                 optimizer.zero_grad()
-                loss = criterion(model(batch_a, batch_b), batch_y)
+                predictions = model(batch_a, batch_b)
+                loss = (criterion(predictions, batch_y) * batch_w).mean()
                 loss.backward()
                 optimizer.step()
 
@@ -220,28 +222,12 @@ def main():
 
     current_branch_a_dim = a_train.shape[1]
 
-    if args.seeds:
-        run_pytorch_seeds(
-            a_train,
-            b_train,
-            y_train,
-            a_test,
-            b_test,
-            y_test,
-            frame.loc[test_idx],
-            args.split_by,
-            args.held_out,
-            args.include_spliced,
-            args.remove_step,
-        )
-        return
-
     model = SemanticModel(branch_a_dim=current_branch_a_dim)
 
     """
      Penalty policy; 
      #1 is for mislabeled attacks
-     #2 mislabeled authorized requests
+     #2 mislabeled authorized requests  
     """
 
     # 1
@@ -258,7 +244,25 @@ def main():
     criterion = torch.nn.BCEWithLogitsLoss(reduction="none")
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
+    # [batch_size, 1] from [batch_size]
     w_train = torch.tensor(sample_weights[train_idx], dtype=torch.float32).unsqueeze(1)
+
+    if args.seeds:
+        run_pytorch_seeds(
+            a_train,
+            b_train,
+            y_train,
+            a_test,
+            b_test,
+            y_test,
+            frame.loc[test_idx],
+            args.split_by,
+            args.held_out,
+            args.include_spliced,
+            args.remove_step,
+            w_train,
+        )
+        return
 
     train_loader = DataLoader(
         TensorDataset(a_train, b_train, y_train, w_train), batch_size=32, shuffle=True
