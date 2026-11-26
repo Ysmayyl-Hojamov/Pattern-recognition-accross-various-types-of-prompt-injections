@@ -6,7 +6,6 @@ Make the code more modular to avoid duplicating it.
 import argparse
 import sys
 import torch
-import torch.optim as optim
 from sklearn.metrics import (
     roc_auc_score,
     accuracy_score,
@@ -28,6 +27,10 @@ from pattern_recognition_model.training_workflow.semantic_model import (
 
 REMOVE_STEP = False
 EPOCHS = 10
+AUTH_WEIGHTS = {
+    "medium": 5.0,
+    "high": 8.0,
+}
 
 
 def parse_args():
@@ -239,7 +242,9 @@ def main():
 
     # 2
     is_auth = frame["kind"].values == "authorized"
-    sample_weights[is_auth] = 8.0
+    # Tried 8.0 11/25/26
+    # Tried lowering the weight to 5.0 11/26/26
+    sample_weights[is_auth] = AUTH_WEIGHTS["medium"]
 
     criterion = torch.nn.BCEWithLogitsLoss(reduction="none")
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
