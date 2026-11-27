@@ -13,9 +13,10 @@ import json
 import os
 from pathlib import Path
 from pattern_recognition_model.data import DANGEROUS_TOOLS
+from pattern_recognition_model.utils import DATASET_VERSION
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = os.path.join(BASE_DIR, "data", "v1", "data", "rows.jsonl")
+DATA_PATH = os.path.join(BASE_DIR, "data", DATASET_VERSION, "data", "rows.jsonl")
 
 with open(DATA_PATH, "r", encoding="utf-8") as file:
     data = [json.loads(line) for line in file if line.strip()]
